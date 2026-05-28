@@ -1,24 +1,25 @@
 import tkinter as tk
 from pathlib import Path
-from PIL import Image, ImageTk
+from PIL import ImageTk
+from manipulation import EditedImage
 
-ROOT_DIR = Path(__file__).parent
+PWD = Path(__file__).parent
 
+def reset_image(image_obj: EditedImage) -> None:
+    image_obj.image_copy = image_obj.original_image_array.copy() # copy() or else its a reference and breaks reset logic, same in manipulation.py
 
-def setup_gui(root):
+def update_previews(pic_label: tk.Label, image_obj: EditedImage) -> None:
+    updated = ImageTk.PhotoImage(image_obj.return_final_as_pil_type())
+    pic_label.config(image=updated)
+    pic_label.image = updated
 
+def setup_gui(root) -> None:
     root.title("Photoshop")
     root.geometry("1000x600")
 
-    # configure wheigts of rows and collumns
-    """
-    i = 0
-    for i in range(8):
-        root.rowconfigure(i, weight=1)
-    h = 0
-    for h in range(4):
-        root.columnconfigure(h, weight=1)
-    """
+    # loading pictures
+    edited_image = EditedImage(image_path=f"{PWD}/images/apple.png")
+    edit_preview = ImageTk.PhotoImage(edited_image.return_final_as_pil_type())
 
     # creating frames
     options_frame = tk.LabelFrame(master=root, text="options", bg="lightgrey")
@@ -32,6 +33,11 @@ def setup_gui(root):
 
     picture_frame = tk.LabelFrame(master=root, text="pictures", bg="lightgrey")
     picture_frame.pack(side="right", fill="both")
+
+    # show pictures
+    pic1_label = tk.Label(picture_frame, image=edit_preview)
+    pic1_label.image = edit_preview
+    pic1_label.pack(side="top")
 
     # creating buttons
     back = tk.Button(
@@ -55,25 +61,29 @@ def setup_gui(root):
         text="reset",
         width=14,
         highlightthickness=0,
+        command=lambda: (reset_image(edited_image), update_previews(pic1_label, edited_image))
     )
     reset.grid(column=1, columnspan=2, row=0, padx=5, pady=5)
 
-    bl_wh = tk.Button(
+    black_white = tk.Button(
         master=button_frame,
         text="black/white",
         width=13,
         highlightthickness=0,
+        command=lambda: (edited_image.grayscale(), update_previews(pic1_label, edited_image))
     )
-    bl_wh.grid(column=0, columnspan=2, row=1, padx=5, pady=5)
+    black_white.grid(column=0, columnspan=2, row=1, padx=5, pady=5)
 
     invert = tk.Button(
         master=button_frame,
         text="invert",
         width=13,
         highlightthickness=0,
+        command=lambda: (edited_image.invert(), update_previews(pic1_label, edited_image))
     )
     invert.grid(column=2, columnspan=2, row=1, padx=5, pady=5)
 
+    # TODO
     save = tk.Button(
         master=button_frame,
         text="save",
@@ -82,6 +92,7 @@ def setup_gui(root):
     )
     save.grid(column=0, columnspan=4, row=7, padx=5, pady=5)
 
+    # TODO
     load = tk.Button(
         master=button_frame,
         text="load",
@@ -90,16 +101,20 @@ def setup_gui(root):
     )
     load.grid(column=0, columnspan=4, row=8, padx=5, pady=5)
 
-    # creating sliders
-    Blur = tk.Scale(
+    # sliders
+
+    # TODO: UI freezes when blurring with slider, add slider + confirm button
+    # TODO: add some way to change blur size + sigma independently (2 sliders or formula?)
+    blur = tk.Scale(
         master=slider_frame,
         from_=0,
         to=100,
         orient=tk.HORIZONTAL,
         length=250,
         troughcolor="#333333",
+        command=lambda val: (edited_image.gaussian_blur(sigma=int(val)), update_previews(pic1_label, edited_image))
     )
-    Blur.grid(column=1, columnspan=3, row=2, padx=5, pady=5)
+    blur.grid(column=1, columnspan=3, row=2, padx=5, pady=5)
 
     red = tk.Scale(
         master=slider_frame,
@@ -112,6 +127,7 @@ def setup_gui(root):
         activebackground="#FF7F7F",
         highlightthickness=0,
         troughcolor="#333333",
+        command=lambda val: (edited_image.set_red(rgb_value=int(val)), update_previews(pic1_label, edited_image))
     )
     red.grid(column=1, columnspan=3, row=3, padx=5, pady=5)
 
@@ -126,6 +142,8 @@ def setup_gui(root):
         activebackground="#88E788",
         highlightthickness=0,
         troughcolor="#333333",
+        command=lambda val: (edited_image.set_green(rgb_value=int(val)), update_previews(pic1_label, edited_image))
+
     )
     green.grid(column=1, columnspan=3, row=4, padx=5, pady=5)
 
@@ -140,6 +158,8 @@ def setup_gui(root):
         activebackground="#90D5FF",
         highlightthickness=0,
         troughcolor="#333333",
+        command=lambda val: (edited_image.set_blue(rgb_value=int(val)), update_previews(pic1_label, edited_image))
+
     )
     blue.grid(column=1, columnspan=3, row=5, padx=5, pady=5)
 
@@ -156,21 +176,6 @@ def setup_gui(root):
     blue_label = tk.Label(master=slider_frame, text="B", bg="#A9A9A9")
     blue_label.grid(column=0, row=5, padx=5, pady=5)
 
-    # loading pictures
-    pil_pic1 = Image.open(f"{ROOT_DIR}/images/RX-9090.jpg")
-    pic1 = ImageTk.PhotoImage(pil_pic1)
-
-    pil_pic2 = Image.open(f"{ROOT_DIR}/images/test2.png")
-    pic2 = ImageTk.PhotoImage(pil_pic2)
-
-    # showing pictures
-    pic1_label = tk.Label(picture_frame, image=pic1)
-    pic1_label.image = pic1
-    pic1_label.pack(side="top")
-
-    pic2_label = tk.Label(picture_frame, image=pic2)
-    pic2_label.image = pic2
-    pic2_label.pack(side="bottom")
 
 
 def main():
