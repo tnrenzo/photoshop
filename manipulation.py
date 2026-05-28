@@ -1,25 +1,46 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
-from PIL.ImageFile import ImageFile # used only for type annotation
 
 class EditedImage:
-    def __init__(self, image_path: str):
-        self.original_image = self._pil_get_image(image_path)
-        self.original_image_array = self._pil_image_to_arr(self.original_image)
+    def __init__(self, image_path: str = None):
+        self.original_image = None
+        self.original_image_array = None
+        self.image_copy = None
 
-        self.image_copy: np.ndarray = self.original_image_array.copy() # copy() or else its a reference and breaks reset logic
 
-        # TODO: Reset History
+        if image_path is not None:
+            self.open_image(image_path) # fills original_image and original_image_array as well as image_copy
 
-    @staticmethod
-    def _pil_get_image(path: str) -> ImageFile:
-        img = Image.open(path)
-        return img
+        # resets
+        self.reset_index = 0
+        self.reset_history: dict[int, np.ndarray] = {}
 
-    @staticmethod
-    def _pil_image_to_arr(img: ImageFile) -> np.ndarray:
-        return np.array(img)
+    def open_image(self, file_path):
+        if file_path is None:
+            return
+        to_open = Image.open(file_path)
+        self.original_image = to_open.copy()
+        self.original_image_array = np.array(to_open).copy()
+        self.image_copy = self.original_image_array.copy()
+
+    def save_image(self, file_path: str):
+        to_save = Image.fromarray(self.image_copy.copy())
+        to_save.save(fp=file_path)
+
+    def save_edit_state(self):
+        self.reset_index += 1
+        self.reset_history[self.reset_index] = self.image_copy.copy()
+
+    def undo_edit(self):
+        if self.reset_index > 0:
+            self.reset_index -= 1
+            self.image_copy = self.reset_history[self.reset_index].copy()
+
+    def redo_edit(self):
+       if self.reset_index < max(self.reset_history.keys()):
+            self.reset_index += 1
+            self.image_copy = self.reset_history[self.reset_index].copy()
 
     def return_final(self) -> np.ndarray:
         return self.image_copy
@@ -35,14 +56,16 @@ class EditedImage:
                 image[:, :, 2] * 0.114)
         # clamp the result to 0-255 and round floats
         self.image_copy = np.clip(gray, 0, 255).astype(np.uint8)
+        self.save_edit_state()
 
     def invert(self) -> None:
         inverted = 255 - self.image_copy
         self.image_copy = inverted
+        self.save_edit_state()
 
     def gaussian_blur(self, size: int = 15, sigma: float | int = 1.0):
         # build and normalize the 1D Gaussian kernel
-        ax = np.linspace(-(size // 2), size // 2, size) # create axis (neighbours) in groups of 5. for example [-2, -1, 0, 1, 2] for size = 5
+        ax = np.linspace(-(size // 2), size // 2, size) # normalize: create axis (neighbours) in groups of 5. for example [-2, -1, 0, 1, 2] for size = 5
         gauss = np.exp(-0.5 * np.square(ax) / np.square(sigma)) # gaussian formula at each point of axis
         gauss /= np.sum(gauss) # normalize axis values so they add up to 1. without this the brightness would be different
 
@@ -57,6 +80,7 @@ class EditedImage:
         blurred = np.apply_along_axis(convolve1d, axis=0, arr=blurred)
 
         self.image_copy = np.clip(blurred, 0, 255).astype(self.image_copy.dtype)
+        self.save_edit_state()
 
     """
     Numpy array: array[:, :, x]

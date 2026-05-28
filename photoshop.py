@@ -1,6 +1,8 @@
 import tkinter as tk
+from tkinter import filedialog
 from pathlib import Path
 from PIL import ImageTk
+
 from manipulation import EditedImage
 
 PWD = Path(__file__).parent
@@ -13,13 +15,60 @@ def update_previews(pic_label: tk.Label, image_obj: EditedImage) -> None:
     pic_label.config(image=updated)
     pic_label.image = updated
 
+def on_slider_release(slider_label: tk.Label, image_obj: EditedImage):
+        image_obj.save_edit_state()
+        update_previews(slider_label, image_obj)
+
+
+
 def setup_gui(root) -> None:
     root.title("Photoshop")
-    root.geometry("1000x600")
+    root.geometry("1280x720") # 720p
 
     # loading pictures
-    edited_image = EditedImage(image_path=f"{PWD}/images/apple.png")
-    edit_preview = ImageTk.PhotoImage(edited_image.return_final_as_pil_type())
+    edited_image = EditedImage()
+    edit_preview = None
+
+    # we don't have an image path right now so we need a handler to help us
+    def open_image_first_launch():
+        nonlocal edited_image
+        file_path = filedialog.askopenfilename(
+            initialdir=PWD,
+            title="Select image file",
+            filetypes=[("Image Files", ("*.png", "*.jpg", "*.jpeg")), ("All Files", "*")]
+        )
+        if file_path:
+            edited_image.open_image(file_path) # now load the real image
+            edit_preview = ImageTk.PhotoImage(edited_image.return_final_as_pil_type())
+
+    open_image_first_launch()
+
+    def open_image(image_obj: EditedImage):
+        nonlocal edited_image
+        nonlocal edit_preview
+        nonlocal pic1_label
+        # get file path
+        file_path = filedialog.askopenfilename(
+            initialdir=PWD,
+            title="Select image file",
+            filetypes=[("Image Files", ("*.png", "*.jpg", "*.jpeg")), ("All Files", "*")]
+        )
+        if file_path:
+            print(f"Opened: {file_path}")
+            image_obj.open_image(file_path)
+            edit_preview = ImageTk.PhotoImage(image_obj.return_final_as_pil_type())
+            update_previews(pic1_label, edited_image)
+
+    def save_image(image_obj: EditedImage):
+        # get file path
+        file_path = filedialog.asksaveasfilename(
+            initialdir=PWD,
+            title="Save Image",
+            filetypes=[("Image Files", ("*.png", "*.jpg", "*.jpeg")), ("All Files", "*")]
+        )
+        if file_path:
+            print(f"Saved to: {file_path}")
+            image_obj.save_image(file_path)
 
     # creating frames
     options_frame = tk.LabelFrame(master=root, text="options", bg="lightgrey")
@@ -40,21 +89,24 @@ def setup_gui(root) -> None:
     pic1_label.pack(side="top")
 
     # creating buttons
-    back = tk.Button(
+    undo = tk.Button(
         master=button_frame,
         text="<--",
         width=4,
         highlightthickness=0,
+        command=lambda: (edited_image.undo_edit(), update_previews(pic1_label, edited_image))
     )
-    back.grid(column=0, columnspan=1, row=0, padx=5, pady=5)
+    undo.grid(column=0, columnspan=1, row=0, padx=5, pady=5)
 
-    forward = tk.Button(
+    redo = tk.Button(
         master=button_frame,
         text="-->",
         width=4,
         highlightthickness=0,
+
+        command=lambda: (edited_image.redo_edit(), update_previews(pic1_label, edited_image))
     )
-    forward.grid(column=3, columnspan=1, row=0, padx=5, pady=5)
+    redo.grid(column=3, columnspan=1, row=0, padx=5, pady=5)
 
     reset = tk.Button(
         master=button_frame,
@@ -83,28 +135,25 @@ def setup_gui(root) -> None:
     )
     invert.grid(column=2, columnspan=2, row=1, padx=5, pady=5)
 
-    # TODO
     save = tk.Button(
         master=button_frame,
         text="save",
         width=16,
         highlightthickness=0,
+        command=lambda: save_image(edited_image)
     )
     save.grid(column=0, columnspan=4, row=7, padx=5, pady=5)
 
-    # TODO
     load = tk.Button(
         master=button_frame,
         text="load",
         width=16,
         highlightthickness=0,
+        command=lambda: open_image(edited_image)
     )
     load.grid(column=0, columnspan=4, row=8, padx=5, pady=5)
 
     # sliders
-
-    # TODO: UI freezes when blurring with slider, add slider + confirm button
-    # TODO: add some way to change blur size + sigma independently (2 sliders or formula?)
     blur = tk.Scale(
         master=slider_frame,
         from_=0,
@@ -112,8 +161,8 @@ def setup_gui(root) -> None:
         orient=tk.HORIZONTAL,
         length=250,
         troughcolor="#333333",
-        command=lambda val: (edited_image.gaussian_blur(sigma=int(val)), update_previews(pic1_label, edited_image))
     )
+    blur.bind("<ButtonRelease-1>", lambda e: (edited_image.gaussian_blur(sigma=blur.get(), size=int(blur.get()/2)), update_previews(pic1_label, edited_image)))
     blur.grid(column=1, columnspan=3, row=2, padx=5, pady=5)
 
     red = tk.Scale(
@@ -127,8 +176,9 @@ def setup_gui(root) -> None:
         activebackground="#FF7F7F",
         highlightthickness=0,
         troughcolor="#333333",
-        command=lambda val: (edited_image.set_red(rgb_value=int(val)), update_previews(pic1_label, edited_image))
+        command=lambda val: edited_image.set_red(rgb_value=int(val))
     )
+    red.bind("<ButtonRelease-1>", lambda e: on_slider_release(pic1_label, edited_image))
     red.grid(column=1, columnspan=3, row=3, padx=5, pady=5)
 
     green = tk.Scale(
@@ -142,9 +192,9 @@ def setup_gui(root) -> None:
         activebackground="#88E788",
         highlightthickness=0,
         troughcolor="#333333",
-        command=lambda val: (edited_image.set_green(rgb_value=int(val)), update_previews(pic1_label, edited_image))
-
+        command=lambda val: edited_image.set_green(rgb_value=int(val))
     )
+    green.bind("<ButtonRelease-1>", lambda e: on_slider_release(pic1_label, edited_image))
     green.grid(column=1, columnspan=3, row=4, padx=5, pady=5)
 
     blue = tk.Scale(
@@ -158,9 +208,9 @@ def setup_gui(root) -> None:
         activebackground="#90D5FF",
         highlightthickness=0,
         troughcolor="#333333",
-        command=lambda val: (edited_image.set_blue(rgb_value=int(val)), update_previews(pic1_label, edited_image))
-
+        command=lambda val: edited_image.set_blue(rgb_value=int(val))
     )
+    blue.bind("<ButtonRelease-1>", lambda e: on_slider_release(pic1_label, edited_image))
     blue.grid(column=1, columnspan=3, row=5, padx=5, pady=5)
 
     # creating text
