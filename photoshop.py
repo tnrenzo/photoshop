@@ -1,7 +1,8 @@
-# from textwrap import fill
-# from turtle import left, right
-# from click import option
 import tkinter as tk
+from pathlib import Path
+from PIL import Image, ImageTk
+
+ROOT_DIR = Path(__file__).parent
 
 
 def setup_gui(root):
@@ -29,7 +30,7 @@ def setup_gui(root):
     slider_frame = tk.LabelFrame(master=options_frame, text="slider", bg="#A9A9A9")
     slider_frame.pack(expand=True)
 
-    picture_frame = tk.Frame(master=root, bg="lightgrey")
+    picture_frame = tk.LabelFrame(master=root, text="pictures", bg="lightgrey")
     picture_frame.pack(side="right", fill="both")
 
     # creating buttons
@@ -120,7 +121,7 @@ def setup_gui(root):
         to=255,
         orient=tk.HORIZONTAL,
         length=250,
-        bg="green",
+        bg="#4CBB17",
         fg="black",
         activebackground="#88E788",
         highlightthickness=0,
@@ -154,6 +155,22 @@ def setup_gui(root):
 
     blue_label = tk.Label(master=slider_frame, text="B", bg="#A9A9A9")
     blue_label.grid(column=0, row=5, padx=5, pady=5)
+
+    # loading pictures
+    pil_pic1 = Image.open(f"{ROOT_DIR}/images/RX-9090.jpg")
+    pic1 = ImageTk.PhotoImage(pil_pic1)
+
+    pil_pic2 = Image.open(f"{ROOT_DIR}/images/test2.png")
+    pic2 = ImageTk.PhotoImage(pil_pic2)
+
+    # showing pictures
+    pic1_label = tk.Label(picture_frame, image=pic1)
+    pic1_label.image = pic1
+    pic1_label.pack(side="top")
+
+    pic2_label = tk.Label(picture_frame, image=pic2)
+    pic2_label.image = pic2
+    pic2_label.pack(side="bottom")
 
 
 def main():
