@@ -2,14 +2,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
 
-"""
-Notes:
-    Numpy array: array[:, :, xxx]
-     - channel 0 ... red
-     - channel 1 ... green
-     - channel 2 ... blue
-"""
-
 def load_image(image_path) -> np.ndarray:
     img = Image.open(image_path)
     return np.array(img)
@@ -26,6 +18,12 @@ def invert(image: np.ndarray) -> np.ndarray:
     inverted = 255 - image
     return inverted
 
+"""
+Numpy array: array[:, :, x]
+ - channel 0 ... red
+ - channel 1 ... green
+ - channel 2 ... blue
+"""
 def set_green(image: np.ndarray, rgb_value: int) -> np.ndarray:
     if rgb_value < 0 or rgb_value > 255:
         print("Invalid RGB Value")
@@ -57,7 +55,7 @@ def main() -> None:
     edit = original.copy()
     edit = grayscale(edit)
 
-    plt.imshow(edit, cmap='gray') # cmap is needed for proper graysscale
+    plt.imshow(edit, cmap='gray') # cmap is needed for proper grayscale
     plt.show()
 
 if __name__ == '__main__':
