@@ -5,7 +5,7 @@ from PIL import ImageTk
 
 from manipulation import EditedImage
 
-PWD = Path(__file__).parent
+CWD = Path(__file__).parent
 
 def reset_image(image_obj: EditedImage) -> None:
     image_obj.image_copy = image_obj.original_image_array.copy() # copy() or else its a reference and breaks reset logic, same in manipulation.py
@@ -33,7 +33,7 @@ def setup_gui(root) -> None:
     def open_image_first_launch():
         nonlocal edited_image
         file_path = filedialog.askopenfilename(
-            initialdir=PWD,
+            initialdir=CWD,
             title="Select image file",
             filetypes=[("Image Files", ("*.png", "*.jpg", "*.jpeg")), ("All Files", "*")]
         )
@@ -49,7 +49,7 @@ def setup_gui(root) -> None:
         nonlocal pic1_label
         # get file path
         file_path = filedialog.askopenfilename(
-            initialdir=PWD,
+            initialdir=CWD,
             title="Select image file",
             filetypes=[("Image Files", ("*.png", "*.jpg", "*.jpeg")), ("All Files", "*")]
         )
@@ -62,7 +62,7 @@ def setup_gui(root) -> None:
     def save_image(image_obj: EditedImage):
         # get file path
         file_path = filedialog.asksaveasfilename(
-            initialdir=PWD,
+            initialdir=CWD,
             title="Save Image",
             filetypes=[("Image Files", ("*.png", "*.jpg", "*.jpeg")), ("All Files", "*")]
         )
