@@ -107,17 +107,20 @@ class EditedImage:
     def set_red(self, rgb_value: int):
         if rgb_value < 0 or rgb_value > 255:
             print("Invalid RGB Value")
-        self.image_copy[:, : , 0] = rgb_value
+        else:
+            self.image_copy[:, : , 0] = rgb_value
 
     def set_green(self, rgb_value: int):
         if rgb_value < 0 or rgb_value > 255:
             print("Invalid RGB Value")
-        self.image_copy[:, :, 1] = rgb_value
+        else:
+            self.image_copy[:, :, 1] = rgb_value
 
     def set_blue(self, rgb_value: int):
         if rgb_value < 0 or rgb_value > 255:
             print("Invalid RGB Value")
-        self.image_copy[:, :, 2] = rgb_value
+        else:
+            self.image_copy[:, :, 2] = rgb_value
 
 def main() -> None:
     image = EditedImage("./images/apple.png")
