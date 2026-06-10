@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import filedialog
 from pathlib import Path
-from PIL import ImageTk
+from PIL import Image, ImageTk
 
 from manipulation import EditedImage
 
@@ -10,15 +10,16 @@ CWD = Path(__file__).parent
 def reset_image(image_obj: EditedImage) -> None:
     image_obj.image_copy = image_obj.original_image_array.copy() # copy() or else its a reference and breaks reset logic, same in manipulation.py
 
+
 def update_previews(pic_label: tk.Label, image_obj: EditedImage) -> None:
     updated = ImageTk.PhotoImage(image_obj.return_final_as_pil_type())
     pic_label.config(image=updated)
     pic_label.image = updated
 
+
 def on_slider_release(slider_label: tk.Label, image_obj: EditedImage):
         image_obj.save_edit_state()
         update_previews(slider_label, image_obj)
-
 
 
 def setup_gui(root) -> None:
@@ -51,6 +52,7 @@ def setup_gui(root) -> None:
         nonlocal edited_image
         nonlocal edit_preview
         nonlocal edited_image_preview_label
+        nonlocal original_image_preview_label
         # get file path
         file_path = filedialog.askopenfilename(
             initialdir=CWD,
@@ -60,8 +62,16 @@ def setup_gui(root) -> None:
         if file_path:
             print(f"Opened: {file_path}")
             image_obj.open_image(file_path)
+            
+            # Edit image update
             edit_preview = ImageTk.PhotoImage(image_obj.return_final_as_pil_type())
             update_previews(edited_image_preview_label, edited_image)
+
+            # Original image update
+            original_pil = Image.fromarray(image_obj.original_image_array)
+            originaL_photo = ImageTk.PhotoImage(original_pil)
+            original_image_preview_label.config(image=originaL_photo)
+            original_image_preview_label.image = originaL_photo
 
     def save_image(image_obj: EditedImage):
         # get file path
