@@ -8,18 +8,17 @@ from manipulation import EditedImage
 CWD = Path(__file__).parent
 
 def reset_image(image_obj: EditedImage) -> None:
-    image_obj.image_copy = image_obj.original_image_array.copy() # copy() or else its a reference and breaks reset logic, same in manipulation.py
+    image_obj.edited = image_obj.original.copy() # copy() or else its a reference and breaks reset logic, same in manipulation.py
 
 
 def update_previews(pic_label: tk.Label, image_obj: EditedImage) -> None:
-    updated = ImageTk.PhotoImage(image_obj.return_final_as_pil_type())
+    updated = ImageTk.PhotoImage(image_obj.get_pil())
     pic_label.config(image=updated)
     pic_label.image = updated
 
 
 def on_slider_release(slider_label: tk.Label, image_obj: EditedImage):
-        image_obj.save_edit_state()
-        update_previews(slider_label, image_obj)
+    update_previews(slider_label, image_obj)
 
 
 def setup_gui(root) -> None:
@@ -27,30 +26,30 @@ def setup_gui(root) -> None:
     root.geometry("1280x720") # 720p
 
     # loading pictures
-    edited_image = EditedImage()
-    edit_preview = None
-    original_preview = None
+    image = EditedImage()
+    edited_photo = None
+    original_photo = None
 
     # we don't have an image path right now so we need a handler to help us
     def open_image_first_launch():
-        nonlocal edited_image
-        nonlocal edit_preview
-        nonlocal original_preview
+        nonlocal image
+        nonlocal edited_photo
+        nonlocal original_photo
         file_path = filedialog.askopenfilename(
             initialdir=CWD,
             title="Select image file",
             filetypes=[("Image Files", ("*.png", "*.jpg", "*.jpeg")), ("All Files", "*")]
         )
         if file_path:
-            edited_image.open_image(file_path) # now load the real image
-            edit_preview = ImageTk.PhotoImage(edited_image.return_final_as_pil_type())
-            original_preview = ImageTk.PhotoImage(edited_image.return_final_as_pil_type().copy())
+            image.open_image(file_path) # now load the real image
+            edited_photo = ImageTk.PhotoImage(image.get_pil())
+            original_photo = ImageTk.PhotoImage(image.get_pil().copy())
 
     open_image_first_launch()
 
     def open_image(image_obj: EditedImage):
-        nonlocal edited_image
-        nonlocal edit_preview
+        nonlocal image
+        nonlocal edited_photo
         nonlocal edited_image_preview_label
         nonlocal original_image_preview_label
         # get file path
@@ -64,14 +63,14 @@ def setup_gui(root) -> None:
             image_obj.open_image(file_path)
             
             # Edit image update
-            edit_preview = ImageTk.PhotoImage(image_obj.return_final_as_pil_type())
-            update_previews(edited_image_preview_label, edited_image)
+            edited_photo = ImageTk.PhotoImage(image_obj.get_pil())
+            update_previews(edited_image_preview_label, image)
 
             # Original image update
-            original_pil = Image.fromarray(image_obj.original_image_array)
-            originaL_photo = ImageTk.PhotoImage(original_pil)
-            original_image_preview_label.config(image=originaL_photo)
-            original_image_preview_label.image = originaL_photo
+            original_pil = Image.fromarray(image_obj.original)
+            original_photo = ImageTk.PhotoImage(original_pil)
+            original_image_preview_label.config(image=original_photo)
+            original_image_preview_label.image = original_photo
 
     def save_image(image_obj: EditedImage):
         # get file path
@@ -99,7 +98,7 @@ def setup_gui(root) -> None:
     pictures_container.pack(side="right", fill="both", expand=True)
 
     picture_frame = tk.LabelFrame(master=pictures_container, text="edit", bg="lightgrey")
-    picture_frame.grid(row=0, column=0, sticky="nsew")
+    picture_frame.grid(row=0, column=0, sticky="nsew") # nsew = north, south, east, west
 
     original_image = tk.LabelFrame(master=pictures_container, text="original", bg="lightgrey")
     original_image.grid(row=0, column=1, sticky="nsew")
@@ -109,12 +108,12 @@ def setup_gui(root) -> None:
     pictures_container.rowconfigure(0, weight=1)
 
     # show pictures
-    edited_image_preview_label = tk.Label(picture_frame, image=edit_preview)
-    edited_image_preview_label.image = edit_preview
+    edited_image_preview_label = tk.Label(picture_frame, image=edited_photo)
+    edited_image_preview_label.image = edited_photo
     edited_image_preview_label.pack(side="top")
 
-    original_image_preview_label = tk.Label(original_image, image=original_preview)
-    original_image_preview_label.image = original_preview
+    original_image_preview_label = tk.Label(original_image, image=original_photo)
+    original_image_preview_label.image = original_photo
     original_image_preview_label.pack(side="top")
 
     # creating buttons
@@ -123,7 +122,7 @@ def setup_gui(root) -> None:
         text="<--",
         width=4,
         highlightthickness=0,
-        command=lambda: (edited_image.undo_edit(), update_previews(edited_image_preview_label, edited_image))
+        command=lambda: (image.undo_edit(), update_previews(edited_image_preview_label, image)) # lambda: temp. fkt in 1 zeile
     )
     undo.grid(column=0, columnspan=1, row=0, padx=5, pady=5)
 
@@ -133,7 +132,7 @@ def setup_gui(root) -> None:
         width=4,
         highlightthickness=0,
 
-        command=lambda: (edited_image.redo_edit(), update_previews(edited_image_preview_label, edited_image))
+        command=lambda: (image.redo_edit(), update_previews(edited_image_preview_label, image))
     )
     redo.grid(column=3, columnspan=1, row=0, padx=5, pady=5)
 
@@ -142,7 +141,7 @@ def setup_gui(root) -> None:
         text="reset",
         width=14,
         highlightthickness=0,
-        command=lambda: (reset_image(edited_image), update_previews(edited_image_preview_label, edited_image))
+        command=lambda: (reset_image(image), update_previews(edited_image_preview_label, image))
     )
     reset.grid(column=1, columnspan=2, row=0, padx=5, pady=5)
 
@@ -151,7 +150,7 @@ def setup_gui(root) -> None:
         text="black/white",
         width=13,
         highlightthickness=0,
-        command=lambda: (edited_image.grayscale(), update_previews(edited_image_preview_label, edited_image))
+        command=lambda: (image.grayscale(), update_previews(edited_image_preview_label, image))
     )
     black_white.grid(column=0, columnspan=2, row=1, padx=5, pady=5)
 
@@ -160,7 +159,7 @@ def setup_gui(root) -> None:
         text="invert",
         width=13,
         highlightthickness=0,
-        command=lambda: (edited_image.invert(), update_previews(edited_image_preview_label, edited_image))
+        command=lambda: (image.invert(), update_previews(edited_image_preview_label, image))
     )
     invert.grid(column=2, columnspan=2, row=1, padx=5, pady=5)
 
@@ -169,7 +168,7 @@ def setup_gui(root) -> None:
         text="save",
         width=16,
         highlightthickness=0,
-        command=lambda: save_image(edited_image)
+        command=lambda: save_image(image)
     )
     save.grid(column=0, columnspan=4, row=7, padx=5, pady=5)
 
@@ -178,7 +177,7 @@ def setup_gui(root) -> None:
         text="load",
         width=16,
         highlightthickness=0,
-        command=lambda: open_image(edited_image)
+        command=lambda: open_image(image)
     )
     load.grid(column=0, columnspan=4, row=8, padx=5, pady=5)
 
@@ -191,9 +190,10 @@ def setup_gui(root) -> None:
         length=250,
         troughcolor="#333333",
     )
-    blur.bind("<ButtonRelease-1>", lambda e: (edited_image.gaussian_blur(sigma=blur.get(), size=int(blur.get()/2)), update_previews(edited_image_preview_label, edited_image)))
+    blur.bind("<ButtonRelease-1>", lambda e: (image.gaussian_blur(sigma=blur.get(), size=int(blur.get()/2)), update_previews(edited_image_preview_label, image)))
     blur.grid(column=1, columnspan=3, row=2, padx=5, pady=5)
 
+    # TODO: Fix button release, copy from blur scale
     red = tk.Scale(
         master=slider_frame,
         from_=0,
@@ -205,9 +205,8 @@ def setup_gui(root) -> None:
         activebackground="#FF7F7F",
         highlightthickness=0,
         troughcolor="#333333",
-        command=lambda val: edited_image.set_red(rgb_value=int(val))
     )
-    red.bind("<ButtonRelease-1>", lambda e: on_slider_release(edited_image_preview_label, edited_image))
+    red.bind("<ButtonRelease-1>", lambda e: (image.set_red(red.get()), update_previews(edited_image_preview_label, image)))
     red.grid(column=1, columnspan=3, row=3, padx=5, pady=5)
 
     green = tk.Scale(
@@ -221,9 +220,8 @@ def setup_gui(root) -> None:
         activebackground="#88E788",
         highlightthickness=0,
         troughcolor="#333333",
-        command=lambda val: edited_image.set_green(rgb_value=int(val))
     )
-    green.bind("<ButtonRelease-1>", lambda e: on_slider_release(edited_image_preview_label, edited_image))
+    green.bind("<ButtonRelease-1>", lambda e: (image.set_green(green.get()), update_previews(edited_image_preview_label, image)))
     green.grid(column=1, columnspan=3, row=4, padx=5, pady=5)
 
     blue = tk.Scale(
@@ -237,9 +235,8 @@ def setup_gui(root) -> None:
         activebackground="#90D5FF",
         highlightthickness=0,
         troughcolor="#333333",
-        command=lambda val: edited_image.set_blue(rgb_value=int(val))
     )
-    blue.bind("<ButtonRelease-1>", lambda e: on_slider_release(edited_image_preview_label, edited_image))
+    blue.bind("<ButtonRelease-1>", lambda e: (image.set_blue(blue.get()), update_previews(edited_image_preview_label, image)))
     blue.grid(column=1, columnspan=3, row=5, padx=5, pady=5)
 
     # creating text

@@ -4,66 +4,73 @@ from PIL import Image
 
 class EditedImage:
     def __init__(self, image_path: str = None):
-        self.original_image = None
-        self.original_image_array = None
-        self.image_copy = None
+        self.original_pil = None
+        self.original = None
+        self.edited = None
 
+
+        self.undo_index = 0
+        self.reset_history: dict[int, np.ndarray] = {}
 
         if image_path is not None:
-            self.open_image(image_path) # fills original_image and original_image_array as well as image_copy
-
-        # resets
-        self.reset_index = 0
-        self.reset_history: dict[int, np.ndarray] = {}
+            self.open_image(image_path)
 
     def open_image(self, file_path):
         if file_path is None:
             return
         to_open = Image.open(file_path)
-        self.original_image = to_open.copy()
-        self.original_image_array = np.array(to_open).copy()
-        self.image_copy = self.original_image_array.copy()
+        self.original_pil = to_open.copy()
+        self.original = np.array(to_open).copy()
+        self.edited = self.original.copy()
+        self.undo_index = 0
+        self.reset_history = {0: self.edited.copy()}
 
     def save_image(self, file_path: str):
-        to_save = Image.fromarray(self.image_copy.copy())
+        to_save = Image.fromarray(self.edited.copy())
         to_save.save(fp=file_path)
 
-    def save_edit_state(self):
-        self.reset_index += 1
-        self.reset_history[self.reset_index] = self.image_copy.copy()
+    def save_to_undo_history(self):
+        keys_to_drop = [k for k in self.reset_history if k > self.undo_index]
+        for k in keys_to_drop:
+            del self.reset_history[k]
+        self.undo_index += 1
+        self.reset_history[self.undo_index] = self.edited.copy()
 
     def undo_edit(self):
-        if self.reset_index > 0:
-            self.reset_index -= 1
-            self.image_copy = self.reset_history[self.reset_index].copy()
+        if self.undo_index > 0:
+            self.undo_index -= 1
+            self.edited = self.reset_history[self.undo_index].copy()
 
     def redo_edit(self):
-       if self.reset_index < max(self.reset_history.keys()):
-            self.reset_index += 1
-            self.image_copy = self.reset_history[self.reset_index].copy()
+        if self.reset_history and self.undo_index < max(self.reset_history.keys()):
+            self.undo_index += 1
+            self.edited = self.reset_history[self.undo_index].copy()
 
-    def return_final(self) -> np.ndarray:
-        return self.image_copy
+    # Exports last image edit
+    def get_array(self) -> np.ndarray:
+        return self.edited
 
-    def return_final_as_pil_type(self) -> Image.Image:
-        return Image.fromarray(self.image_copy)
+    # Same as above, but as pil image
+    def get_pil(self) -> Image.Image:
+        return Image.fromarray(self.edited)
 
     def grayscale(self) -> None:
-        image = self.image_copy
+        image = self.edited
         # average each channel using weighted averages
         gray = (image[:, :, 0] * 0.299 +
                 image[:, :, 1] * 0.587 +
                 image[:, :, 2] * 0.114)
         # clamp the result to 0-255 and round floats
-        self.image_copy = np.clip(gray, 0, 255).astype(np.uint8)
-        self.save_edit_state()
+        self.edited = np.clip(gray, 0, 255).astype(np.uint8)
+        self.save_to_undo_history()
 
     def invert(self) -> None:
-        inverted = 255 - self.image_copy
-        self.image_copy = inverted
-        self.save_edit_state()
+        self.save_to_undo_history()
+        self.edited = 255 - self.edited
 
     def gaussian_blur(self, size: int = 15, sigma: float | int = 1.0):
+        if size <= 0 or sigma <= 0:
+            return
         # build and normalize the 1D Gaussian kernel
         ax = np.linspace(-(size // 2), size // 2, size) # normalize: create axis (neighbours) in groups of 5. for example [-2, -1, 0, 1, 2] for size = 5
         gauss = np.exp(-0.5 * np.square(ax) / np.square(sigma)) # gaussian formula at each point of axis
@@ -76,11 +83,12 @@ class EditedImage:
             return np.convolve(arr, gauss, mode='same')
 
         # apply horizontally (axis=1), then vertically (axis=0). one channel at a time
-        blurred = np.apply_along_axis(convolve1d, axis=1, arr=self.image_copy.astype(np.float64))
+        blurred = np.apply_along_axis(convolve1d, axis=1, arr=self.edited.astype(np.float64))
         blurred = np.apply_along_axis(convolve1d, axis=0, arr=blurred)
 
-        self.image_copy = np.clip(blurred, 0, 255).astype(self.image_copy.dtype)
-        self.save_edit_state()
+        self.edited = np.clip(blurred, 0, 255).astype(self.edited.dtype)
+        self.save_to_undo_history()
+
 
     """
     Numpy array: array[:, :, x]
@@ -108,19 +116,22 @@ class EditedImage:
         if rgb_value < 0 or rgb_value > 255:
             print("Invalid RGB Value")
         else:
-            self.image_copy[:, : , 0] = rgb_value
+            self.edited[:, : , 0] = rgb_value
+            self.save_to_undo_history()
 
     def set_green(self, rgb_value: int):
         if rgb_value < 0 or rgb_value > 255:
             print("Invalid RGB Value")
         else:
-            self.image_copy[:, :, 1] = rgb_value
+            self.edited[:, :, 1] = rgb_value
+            self.save_to_undo_history()
 
     def set_blue(self, rgb_value: int):
         if rgb_value < 0 or rgb_value > 255:
             print("Invalid RGB Value")
         else:
-            self.image_copy[:, :, 2] = rgb_value
+            self.edited[:, :, 2] = rgb_value
+            self.save_to_undo_history()
 
 def main() -> None:
     image = EditedImage("./images/apple.png")
@@ -131,7 +142,7 @@ def main() -> None:
     image.invert()
     image.grayscale()
 
-    plt.imshow(image.return_final(), cmap='gray') # cmap is needed for proper grayscale
+    plt.imshow(image.get_array(), cmap='gray') # cmap is needed for proper grayscale
     plt.show()
 
 if __name__ == '__main__':
