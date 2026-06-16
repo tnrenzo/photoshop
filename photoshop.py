@@ -193,7 +193,6 @@ def setup_gui(root) -> None:
     blur.bind("<ButtonRelease-1>", lambda e: (image.gaussian_blur(sigma=blur.get(), size=int(blur.get()/2)), update_previews(edited_image_preview_label, image)))
     blur.grid(column=1, columnspan=3, row=2, padx=5, pady=5)
 
-    # TODO: Fix button release, copy from blur scale
     red = tk.Scale(
         master=slider_frame,
         from_=0,
